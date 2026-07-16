@@ -76,7 +76,14 @@ agent-setup config <project> <agent> /path/to/project
 
 The agent defaults to `codex`, and the target path defaults to the current
 directory. The command loads the agent hooks first, then invokes the project's
-`config_hook`.
+`config_hook`. Successful configurations are recorded in:
+
+```text
+${XDG_DATA_HOME:-$HOME/.local/share}/agent-setup/configured-projects
+```
+
+Each unique project, agent, and absolute target path is recorded once so that
+updates can reapply configuration to every registered worktree.
 
 ### Update the installation
 
@@ -93,7 +100,11 @@ Update requires:
 The update is applied as a fast-forward. If files below
 `configs/<agent>/` changed and that agent previously completed setup, the
 updated CLI reruns `setup <agent>`. All affected agents are attempted, and the
-command exits unsuccessfully if any setup hook fails.
+updated CLI then reruns project configuration for every registered target.
+Missing target directories are pruned from the registry with a warning. Other
+hook failures make the command exit unsuccessfully after all entries have been
+attempted. Pruning occurs on every successful update check, including when the
+installation is already up to date.
 
 ## Extension API
 

@@ -44,6 +44,10 @@ get_installed_agents_file() {
   echo "$(get_state_dir)/installed-agents"
 }
 
+get_configured_projects_file() {
+  echo "$(get_state_dir)/configured-projects"
+}
+
 is_agent_installed() {
   local agent="$1"
   local state_file
@@ -74,6 +78,78 @@ mark_agent_installed() {
     rm -f "$temp_file"
     return 1
   }
+
+  mv "$temp_file" "$state_file"
+}
+
+mark_project_configured() {
+  local project="$1"
+  local agent="$2"
+  local target="$3"
+  local state_dir
+  local state_file
+  local temp_file
+  local record
+
+  if [[ "$target" == *$'\t'* || "$target" == *$'\n'* ]]; then
+    echo "Error: project target contains a tab or newline and cannot be recorded: $target" >&2
+    return 1
+  fi
+
+  state_dir=$(get_state_dir)
+  state_file=$(get_configured_projects_file)
+  record="${project}"$'\t'"${agent}"$'\t'"${target}"
+  mkdir -p "$state_dir" || return 1
+
+  if [[ -f "$state_file" ]] && grep -Fxq -- "$record" "$state_file"; then
+    return 0
+  fi
+
+  temp_file="${state_file}.tmp.$$"
+  {
+    [[ -f "$state_file" ]] && cat "$state_file"
+    echo "$record"
+  } >"$temp_file" || {
+    rm -f "$temp_file"
+    return 1
+  }
+
+  mv "$temp_file" "$state_file"
+}
+
+prune_missing_configured_projects() {
+  local state_file
+  local temp_file
+  local record
+  local project
+  local agent
+  local target
+
+  state_file=$(get_configured_projects_file)
+  [[ -s "$state_file" ]] || return 0
+
+  temp_file="${state_file}.tmp.$$"
+  : >"$temp_file" || return 1
+
+  while IFS= read -r record || [[ -n "$record" ]]; do
+    IFS=$'\t' read -r project agent target <<<"$record"
+    if [[ -z "$project" || -z "$agent" || -z "$target" ]]; then
+      printf '%s\n' "$record" >>"$temp_file" || {
+        rm -f "$temp_file"
+        return 1
+      }
+      continue
+    fi
+    if [[ ! -d "$target" ]]; then
+      warn "Pruning missing project target: $target"
+      continue
+    fi
+
+    printf '%s\n' "$record" >>"$temp_file" || {
+      rm -f "$temp_file"
+      return 1
+    }
+  done <"$state_file"
 
   mv "$temp_file" "$state_file"
 }
@@ -204,6 +280,9 @@ cmd_config() {
     config_hook "$target" "$agent"
   ) || error "Configuration failed for project '$project' and agent '$agent'"
 
+  mark_project_configured "$project" "$agent" "$target" ||
+    error "Project configured, but failed to record configuration state"
+
   success "Project '$project' configured successfully for agent '$agent'."
 }
 
@@ -250,6 +329,9 @@ cmd_update() {
   echo "Fetching updates..."
   git fetch --quiet || error "Failed to fetch updates"
 
+  prune_missing_configured_projects ||
+    error "Failed to prune project configuration state"
+
   local behind
   behind=$(git rev-list --count "HEAD..${upstream}") || error "Failed to compare with upstream"
   if (( behind == 0 )); then
@@ -272,25 +354,49 @@ cmd_update() {
     fi
   done < <(changed_config_agents "$old_revision" "$new_revision")
 
-  if (( ${#agents_to_setup[@]} == 0 )); then
-    success "Agent setup updated successfully."
-    return 0
+  local failed=0
+  if (( ${#agents_to_setup[@]} > 0 )); then
+    echo "Reapplying updated configuration for installed agents..."
+    for agent in "${agents_to_setup[@]}"; do
+      echo "  Setting up '$agent'..."
+      if "$AGENT_SETUP_DIR/agent-setup.sh" setup "$agent"; then
+        success "  Setup completed for '$agent'."
+      else
+        warn "  Setup failed for '$agent'."
+        failed=1
+      fi
+    done
   fi
 
-  echo "Reapplying updated configuration for installed agents..."
-  local failed=0
-  for agent in "${agents_to_setup[@]}"; do
-    echo "  Setting up '$agent'..."
-    if "$AGENT_SETUP_DIR/agent-setup.sh" setup "$agent"; then
-      success "  Setup completed for '$agent'."
-    else
-      warn "  Setup failed for '$agent'."
-      failed=1
-    fi
-  done
+  local configured_projects_file
+  local project
+  local target
+  configured_projects_file=$(get_configured_projects_file)
+  if [[ -s "$configured_projects_file" ]]; then
+    echo "Reapplying configuration for registered projects..."
+    while IFS=$'\t' read -r project agent target; do
+      if [[ -z "$project" || -z "$agent" || -z "$target" ]]; then
+        warn "Skipping malformed project configuration record."
+        failed=1
+        continue
+      fi
+      if [[ ! -d "$target" ]]; then
+        warn "Skipping project target that disappeared during update: $target"
+        continue
+      fi
+
+      echo "  Configuring '$project' for '$agent' at $target..."
+      if "$AGENT_SETUP_DIR/agent-setup.sh" config "$project" "$agent" "$target"; then
+        success "  Configuration completed for '$project' at $target."
+      else
+        warn "  Configuration failed for '$project' at $target."
+        failed=1
+      fi
+    done <"$configured_projects_file"
+  fi
 
   if (( failed != 0 )); then
-    error "Agent setup updated, but one or more agent setup hooks failed"
+    error "Agent setup updated, but one or more hooks failed"
   fi
 
   success "Agent setup updated successfully."
@@ -315,7 +421,8 @@ Commands:
   config  Configure a project using an agent's hooks. The agent defaults to
           'codex' and the target path defaults to the current directory.
   update  Safely update this installation and rerun changed configurations for
-          agents that have previously completed setup.
+          agents that have previously completed setup, then reconfigure all
+          registered project targets.
   help    Show this message.
 EOF
 }
