@@ -78,6 +78,52 @@ mark_agent_installed() {
   mv "$temp_file" "$state_file"
 }
 
+default_config_hook() {
+  local target_path="$1"
+  local agent="$2"
+  local project_config_dir="$PWD"
+  local config_file="$project_config_dir/AGENTS.md"
+  local asset_dir
+  local asset
+  local -a assets
+
+  if [[ -f "$config_file" ]]; then
+    typeset -f install_config >/dev/null || {
+      echo "Error: agent '$agent' does not provide install_config" >&2
+      return 1
+    }
+    install_config "$config_file" || return 1
+  fi
+
+  asset_dir="$project_config_dir/agents"
+  if [[ -d "$asset_dir" ]]; then
+    assets=("$asset_dir"/*(N))
+    if (( ${#assets[@]} > 0 )); then
+      typeset -f install_agent >/dev/null || {
+        echo "Error: agent '$agent' does not provide install_agent" >&2
+        return 1
+      }
+      for asset in "${assets[@]}"; do
+        install_agent "$asset" "${asset:t}" || return 1
+      done
+    fi
+  fi
+
+  asset_dir="$project_config_dir/skills"
+  if [[ -d "$asset_dir" ]]; then
+    assets=("$asset_dir"/*(N))
+    if (( ${#assets[@]} > 0 )); then
+      typeset -f install_skill >/dev/null || {
+        echo "Error: agent '$agent' does not provide install_skill" >&2
+        return 1
+      }
+      for asset in "${assets[@]}"; do
+        install_skill "$asset" "${asset:t}" || return 1
+      done
+    fi
+  fi
+}
+
 run_setup_hook() {
   local agent="$1"
   local config_dir="$AGENT_SETUP_DIR/configs/$agent"
