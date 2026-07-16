@@ -11,17 +11,16 @@ agent-setup/
 ├── agent-setup.sh
 ├── bootstrap.sh
 ├── configs/
-│   └── codex/
+│   └── <agent>/
 │       ├── setup.sh
 │       └── hooks.sh
 └── projects/
-    └── llvm/
+    └── <project>/
+        ├── AGENTS.md
+        ├── agents/
+        ├── skills/
         └── config.sh
 ```
-
-The LLVM project file is currently a working placeholder. The Codex setup
-configures a per-user writable scratch directory; additional Codex behavior
-will be added incrementally.
 
 ## Installation
 
@@ -55,21 +54,11 @@ To bootstrap from another Git repository:
 ### Set up an agent
 
 ```zsh
-agent-setup setup codex
+agent-setup setup <agent>
 ```
 
-This loads `configs/codex/setup.sh`, invokes `setup_hook`, and records the agent
-as installed only if the hook succeeds.
-
-The Codex setup creates and grants workspace-write access to:
-
-- `/tmp/<username>/codex`;
-- `$HOME/.ccache`; and
-- `/run/user/<uid>/ccache-tmp`.
-
-These paths are added to `sandbox_workspace_write.writable_roots` in
-`${CODEX_HOME:-$HOME/.codex}/config.toml`. Existing roots and unrelated Codex
-settings are preserved, and repeated setup runs do not add duplicate entries.
+This loads `configs/<agent>/setup.sh`, invokes `setup_hook`, and records the
+agent as installed only if the hook succeeds.
 
 Successfully configured agents are stored one per line in:
 
@@ -80,9 +69,9 @@ ${XDG_DATA_HOME:-$HOME/.local/share}/agent-setup/installed-agents
 ### Configure a project
 
 ```zsh
-agent-setup config llvm
-agent-setup config llvm codex
-agent-setup config llvm codex /path/to/llvm
+agent-setup config <project>
+agent-setup config <project> <agent>
+agent-setup config <project> <agent> /path/to/project
 ```
 
 The agent defaults to `codex`, and the target path defaults to the current
@@ -152,17 +141,33 @@ implementation.
 
 ```zsh
 config_hook() {
-  local target_path="$1"
-  local agent="$2"
-
-  install_skill "$PWD/skills/example"
-  install_agent "$PWD/agents/reviewer.toml"
-  install_config "$PWD/AGENTS.md"
+  default_config_hook "$@"
 }
 ```
 
 Agent hooks are loaded before `config_hook`. Project hooks run from the
 project's configuration directory.
+
+The built-in `default_config_hook` supports this layout:
+
+```text
+projects/<project>/
+├── AGENTS.md
+├── agents/
+│   └── <agent-entry>
+└── skills/
+    └── <skill-entry>/
+        └── SKILL.md
+```
+
+Every element is optional. When present, `AGENTS.md` is passed to
+`install_config`. Each immediate entry under `agents/` is passed to
+`install_agent`, and each immediate entry under `skills/` is passed to
+`install_skill`. Asset hooks receive the full source path and the entry's base
+name. Empty or absent asset directories require no corresponding hook.
+
+Projects can invoke installation hooks directly when they need behavior beyond
+the default layout. See `projects/example/` for a complete generic example.
 
 The following variables are exported while hooks execute:
 
@@ -179,7 +184,7 @@ back into the CLI.
 Run syntax checks and integration tests with:
 
 ```sh
-zsh -n agent-setup.sh configs/codex/setup.sh configs/codex/hooks.sh projects/llvm/config.sh
+zsh -n agent-setup.sh configs/*/*.sh projects/*/config.sh
 sh -n bootstrap.sh
 tests/integration.sh
 ```
