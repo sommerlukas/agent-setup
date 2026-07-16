@@ -180,7 +180,13 @@ head_repository="$(jq -r '.head.repo.full_name // empty' <<<"$pr_json")"
 [[ -n "$head_repository" ]] ||
   die "PR #$pr_number has no accessible head repository"
 
-temporary_directory="$(mktemp -d)"
+temporary_root="/tmp/$(id -un)/codex"
+mkdir -p "$temporary_root" ||
+  die "could not create temporary directory root: $temporary_root"
+chmod 700 "$temporary_root" ||
+  die "could not secure temporary directory root: $temporary_root"
+temporary_directory="$(mktemp -d "$temporary_root/gh-address-pr-review.XXXXXX")" ||
+  die "could not create temporary directory under: $temporary_root"
 cleanup() {
   rm -rf "$temporary_directory"
 }

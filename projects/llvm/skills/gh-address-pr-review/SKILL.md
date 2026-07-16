@@ -22,10 +22,10 @@ Address new review feedback on the current branch. Make justified code changes, 
 
 2. Create a temporary file and download the review.
    - Resolve this skill's directory from the loaded `SKILL.md`.
-   - Ensure the private per-user temporary directory exists, then create one uniquely named file inside it:
+   - Ensure the Codex temporary directory specified by `AGENTS.md` exists, then create one uniquely named file inside it:
 
      ```bash
-     review_tmp_directory="/tmp/$(id -un)"
+     review_tmp_directory="/tmp/$(id -un)/codex"
      mkdir -p "$review_tmp_directory"
      chmod 700 "$review_tmp_directory"
      review_tmp_file="$(mktemp "$review_tmp_directory/gh-address-pr-review.XXXXXX")"
@@ -104,7 +104,7 @@ Address new review feedback on the current branch. Make justified code changes, 
    - For user-decided items, summarize the decision without exposing unnecessary internal deliberation.
    - Keep original comment links and code locations intact.
    - Ensure the report itself is not staged.
-   - Remove only `review_tmp_file` after the final report has safely incorporated the original feedback. Never remove `/tmp/<username>` because other sessions may be using it.
+   - Remove only `review_tmp_file` after the final report has safely incorporated the original feedback. Never remove `/tmp/<username>/codex` because other sessions may be using it.
 
 ## Completion criteria
 
@@ -114,7 +114,7 @@ Finish only when:
 - Accepted items have corresponding unstaged changes.
 - Relevant validation has been run or its blocker documented.
 - The uniquely named `pr-review-responses-YYYY-MM-DD[-N].md` in the Codex session root contains the original comments and all responses.
-- The uniquely named temporary file under `/tmp/<username>` has been deleted, while the per-user directory remains.
+- The uniquely named temporary file under `/tmp/<username>/codex` has been deleted, while the shared Codex temporary directory remains.
 - Nothing has been posted, staged, committed, or pushed.
 
 In the final user-facing summary, list accepted changes, declined or non-applicable comments, unresolved questions, validation performed, and the response report path.
