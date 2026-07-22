@@ -7,37 +7,62 @@ description: Download, assess, and address GitHub pull-request review feedback f
 
 Address new review feedback on the current branch. Make justified code changes, consult the user about ambiguous feedback, and leave a local response report. Do not post to GitHub, stage, commit, or push.
 
+## Command discipline
+
+Keep shell invocations short so Codex's configured permissions can recognize
+routine commands and one approval can cover the bundled downloader.
+
+- Run one command per tool call.
+- Do not combine commands with `&&`, `;`, pipes, redirections, command
+  substitutions, shell variables, loops, or inline scripts.
+- Prefer direct commands such as `pwd -P`, `git status --short`, `date +%F`,
+  `mkdir -p <directory>`, `chmod 700 <directory>`, and `mktemp <template>`.
+- Use Codex's file-reading and file-editing tools instead of shell commands when
+  inspecting or writing files.
+- Invoke `scripts/download-pr-reviews.sh` directly as its own command. If it
+  needs approval, request a reusable approval for that script prefix; do not
+  wrap it in a larger shell command.
+- When a later command needs a value such as a path, copy the literal value
+  from the previous command's output into the next command instead of storing
+  it in a shell variable.
+
 ## Workflow
 
 1. Confirm the working tree and current branch.
    - Capture the initial Codex session root from the session environment before changing any tool working directory. Do not derive it from `git rev-parse`, because the session root and repository root may differ:
 
      ```bash
-     session_root="$(pwd -P)"
+     pwd -P
      ```
 
+   - Remember the returned path as `session_root`; do not assign it in the shell.
    - Run `git status --short`.
    - Preserve all pre-existing user changes.
    - Note which files were already modified so they are not mistaken for review-driven changes.
 
 2. Create a temporary file and download the review.
    - Resolve this skill's directory from the loaded `SKILL.md`.
-   - Ensure the Codex temporary directory specified by `AGENTS.md` exists, then create one uniquely named file inside it:
+   - Ensure the Codex temporary directory specified by `AGENTS.md` exists. Run
+     each command separately, replacing `<username>` with the known literal
+     username:
 
      ```bash
-     review_tmp_directory="/tmp/$(id -un)/codex"
-     mkdir -p "$review_tmp_directory"
-     chmod 700 "$review_tmp_directory"
-     review_tmp_file="$(mktemp "$review_tmp_directory/gh-address-pr-review.XXXXXX")"
+     id -un
+     mkdir -p /tmp/<username>/codex
+     chmod 700 /tmp/<username>/codex
+     mktemp /tmp/<username>/codex/gh-address-pr-review.XXXXXX
      ```
 
-   - Run:
+   - Remember the literal path printed by `mktemp` as `review_tmp_file`; do not
+     assign it in the shell.
+   - Run the downloader as one standalone command with literal paths:
 
      ```bash
-     <skill-directory>/scripts/download-pr-reviews.sh \
-       "$review_tmp_file"
+     <skill-directory>/scripts/download-pr-reviews.sh <review_tmp_file>
      ```
 
+   - If approval is required, request a reusable prefix approval for
+     `<skill-directory>/scripts/download-pr-reviews.sh`.
    - If automatic cutoff detection fails, explain why and ask the user for an ISO-8601 cutoff to pass with `--since`. Do not invent a cutoff.
    - Read the complete downloaded file before editing code.
 
@@ -72,17 +97,11 @@ Address new review feedback on the current branch. Make justified code changes, 
 7. Write the local response report.
    - Write the report in `session_root`, not the Git repository root, unless the user specifies another directory.
    - Use `pr-review-responses-YYYY-MM-DD.md`, based on the local calendar date.
-   - Do not overwrite an existing report. If the date-based name already exists, append `-2`, `-3`, and so on:
-
-     ```bash
-     report_date="$(date +%F)"
-     response_report="$session_root/pr-review-responses-$report_date.md"
-     report_suffix=2
-     while [[ -e "$response_report" ]]; do
-       response_report="$session_root/pr-review-responses-$report_date-$report_suffix.md"
-       ((report_suffix += 1))
-     done
-     ```
+   - Run `date +%F` as a standalone command. Use the returned literal date in
+     the filename.
+   - Do not overwrite an existing report. Check candidate paths with file tools
+     rather than a shell loop. If the date-based name exists, try `-2`, `-3`,
+     and so on until an unused path is found.
 
    - Preserve the PR metadata and original review text from the downloaded report.
    - For each actionable review item, append:
@@ -104,7 +123,10 @@ Address new review feedback on the current branch. Make justified code changes, 
    - For user-decided items, summarize the decision without exposing unnecessary internal deliberation.
    - Keep original comment links and code locations intact.
    - Ensure the report itself is not staged.
-   - Remove only `review_tmp_file` after the final report has safely incorporated the original feedback. Never remove `/tmp/<username>/codex` because other sessions may be using it.
+   - Remove only the literal `review_tmp_file` path after the final report has
+     safely incorporated the original feedback. Run that removal as one
+     standalone command. Never remove `/tmp/<username>/codex` because other
+     sessions may be using it.
 
 ## Completion criteria
 
