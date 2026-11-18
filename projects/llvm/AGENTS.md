@@ -55,7 +55,7 @@ Avoid broad test suites when a focused test or test target covers the change.
 
 # Temporary Files
 
-If you need to store temporary files, use `/tmp/$USER/codex`, not `/tmp/`
+If you need to store temporary files, use `/tmp/$USER/agent`, not `/tmp/`
 directly, to avoid conflicts with other people also using agents on this
 machine.
 

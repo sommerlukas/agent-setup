@@ -4,7 +4,7 @@
 
 The setup hook creates and grants workspace-write access to:
 
-- `/tmp/<username>/codex`;
+- `/tmp/<username>/agent`;
 - `$HOME/.ccache`; and
 - `/run/user/<uid>/ccache-tmp`.
 

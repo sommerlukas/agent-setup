@@ -1,6 +1,6 @@
 ---
 name: review-upstream-pr
-description: Review an upstream llvm/llvm-project pull request for logic errors, regressions, missing tests, and LLVM coding-standard violations. Use when Codex is asked to review, assess, or provide code-review comments for a numbered upstream LLVM PR. Downloads and retains the PR diff, keeps the checkout unchanged, summarizes findings in chat, and writes concrete local review comments.
+description: Review an upstream llvm/llvm-project pull request for logic errors, regressions, missing tests, and LLVM coding-standard violations. Use when asked to review, assess, or provide code-review comments for a numbered upstream LLVM PR (e.g. "review PR 12345"). Downloads and retains the PR diff, keeps the checkout unchanged, summarizes findings in chat, and writes concrete local review comments.
 ---
 
 # Review Upstream PR
@@ -37,7 +37,7 @@ checkout or posting feedback to GitHub.
 
    - The script selects the first positive suffix unused by both the retained
      diff and report paths. It downloads from the full upstream GitHub PR URL,
-     writes the diff under `/tmp/$USER/codex`, and prints the paired absolute
+     writes the diff under `/tmp/$USER/agent`, and prints the paired absolute
      paths.
    - Require exactly two output lines and verify that `diff_file` is readable.
    - Read the complete diff before assessing individual changes.
@@ -109,5 +109,5 @@ checkout or posting feedback to GitHub.
 
 Finish only when the complete diff has been reviewed, every finding has a
 precise diff location and concrete comment, the uniquely named report exists
-under `local/`, the retained diff exists under `/tmp/$USER/codex`, and the
+under `local/`, the retained diff exists under `/tmp/$USER/agent`, and the
 checkout remains unchanged.

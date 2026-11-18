@@ -134,7 +134,7 @@ setup_hook() {
   username="${USER:-$(id -un)}"
   user_id=$(id -u) || return 1
   writable_roots=(
-    "/tmp/$username/codex"
+    "/tmp/$username/agent"
     "$HOME/.ccache"
     "/run/user/$user_id/ccache-tmp"
   )

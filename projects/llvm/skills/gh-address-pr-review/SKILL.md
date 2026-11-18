@@ -1,6 +1,6 @@
 ---
 name: gh-address-pr-review
-description: Download, assess, and address GitHub pull-request review feedback for the current branch while keeping all responses local. Use when Codex is asked to handle, resolve, assess, or respond to PR review comments, especially for LLVM pull requests from a personal fork. Produces unstaged code changes and a Markdown report containing the original feedback, assessment, action taken, and proposed response; never posts comments or pushes changes.
+description: Download, assess, and address GitHub pull-request review feedback for the current branch while keeping all responses local. Use when asked to handle, resolve, assess, address, or respond to PR review comments on the current branch, especially for LLVM pull requests from a personal fork. Produces unstaged code changes and a Markdown report containing the original feedback, assessment, action taken, and proposed response; never posts comments or pushes changes.
 ---
 
 # Address GitHub PR Review
@@ -9,7 +9,7 @@ Address new review feedback on the current branch. Make justified code changes, 
 
 ## Command discipline
 
-Keep shell invocations short so Codex's configured permissions can recognize
+Keep shell invocations short so the configured permissions can recognize
 routine commands and one approval can cover the bundled downloader.
 
 - Run one command per tool call.
@@ -17,7 +17,7 @@ routine commands and one approval can cover the bundled downloader.
   substitutions, shell variables, loops, or inline scripts.
 - Prefer direct commands such as `pwd -P`, `git status --short`, `date +%F`,
   `mkdir -p <directory>`, `chmod 700 <directory>`, and `mktemp <template>`.
-- Use Codex's file-reading and file-editing tools instead of shell commands when
+- Use the agent's file-reading and file-editing tools instead of shell commands when
   inspecting or writing files.
 - Invoke `scripts/download-pr-reviews.sh` directly as its own command. If it
   needs approval, request a reusable approval for that script prefix; do not
@@ -29,7 +29,7 @@ routine commands and one approval can cover the bundled downloader.
 ## Workflow
 
 1. Confirm the working tree and current branch.
-   - Capture the initial Codex session root from the session environment before changing any tool working directory. Do not derive it from `git rev-parse`, because the session root and repository root may differ:
+   - Capture the initial session root from the session environment before changing any tool working directory. Do not derive it from `git rev-parse`, because the session root and repository root may differ:
 
      ```bash
      pwd -P
@@ -42,15 +42,15 @@ routine commands and one approval can cover the bundled downloader.
 
 2. Create a temporary file and download the review.
    - Resolve this skill's directory from the loaded `SKILL.md`.
-   - Ensure the Codex temporary directory specified by `AGENTS.md` exists. Run
+   - Ensure the agent temporary directory specified by `AGENTS.md` exists. Run
      each command separately, replacing `<username>` with the known literal
      username:
 
      ```bash
      id -un
-     mkdir -p /tmp/<username>/codex
-     chmod 700 /tmp/<username>/codex
-     mktemp /tmp/<username>/codex/gh-address-pr-review.XXXXXX
+     mkdir -p /tmp/<username>/agent
+     chmod 700 /tmp/<username>/agent
+     mktemp /tmp/<username>/agent/gh-address-pr-review.XXXXXX
      ```
 
    - Remember the literal path printed by `mktemp` as `review_tmp_file`; do not
@@ -125,7 +125,7 @@ routine commands and one approval can cover the bundled downloader.
    - Ensure the report itself is not staged.
    - Remove only the literal `review_tmp_file` path after the final report has
      safely incorporated the original feedback. Run that removal as one
-     standalone command. Never remove `/tmp/<username>/codex` because other
+     standalone command. Never remove `/tmp/<username>/agent` because other
      sessions may be using it.
 
 ## Completion criteria
@@ -135,8 +135,8 @@ Finish only when:
 - Every actionable review item has a disposition, rationale, action, and proposed local response.
 - Accepted items have corresponding unstaged changes.
 - Relevant validation has been run or its blocker documented.
-- The uniquely named `pr-review-responses-YYYY-MM-DD[-N].md` in the Codex session root contains the original comments and all responses.
-- The uniquely named temporary file under `/tmp/<username>/codex` has been deleted, while the shared Codex temporary directory remains.
+- The uniquely named `pr-review-responses-YYYY-MM-DD[-N].md` in the session root contains the original comments and all responses.
+- The uniquely named temporary file under `/tmp/<username>/agent` has been deleted, while the shared temporary directory remains.
 - Nothing has been posted, staged, committed, or pushed.
 
 In the final user-facing summary, list accepted changes, declined or non-applicable comments, unresolved questions, validation performed, and the response report path.

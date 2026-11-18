@@ -32,7 +32,7 @@ git -C "$workspace_root/src" rev-parse --is-inside-work-tree >/dev/null 2>&1 ||
   die "workspace does not contain a Git checkout at: $workspace_root/src"
 
 local_directory="$workspace_root/local"
-temporary_root="/tmp/$(id -un)/codex"
+temporary_root="/tmp/$(id -un)/agent"
 mkdir -p "$local_directory" "$temporary_root" ||
   die "could not create output directories"
 chmod 700 "$temporary_root" ||
